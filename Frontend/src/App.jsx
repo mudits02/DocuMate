@@ -1,9 +1,10 @@
+import { Outlet } from 'react-router-dom';
 import './App.css'
 
-function App() {
+const App = () => {
   return(
-    <div>
-      <h1>Documate</h1>
+    <div className='App'>
+      <Outlet />
     </div>
   )
 }
