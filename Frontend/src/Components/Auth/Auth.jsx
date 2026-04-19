@@ -5,6 +5,10 @@ const Auth = () => {
   // const [emailId, setEmailId] = useState("");
   // const [password, setPassword] = useState("");
 
+  const handleGoogleLogin = () => {
+    window.location.href = 'http://localhost:8080/api/auth/google';
+  }
+
   return (
     <div className="min-h-screen bg-[#0d1321] font-['Inter'] text-[#dde2f6] flex flex-col items-center justify-center relative overflow-hidden">
       {/* Background dot pattern */}
@@ -76,7 +80,7 @@ const Auth = () => {
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <button type="button" className="cursor-pointer flex items-center justify-center gap-1.5 py-2 px-3 bg-[#080e1c] border border-[#45464c]/10 rounded-md hover:bg-[#242a39] transition-colors text-xs font-medium">
+            <button onClick={handleGoogleLogin} type="button" className="cursor-pointer flex items-center justify-center gap-1.5 py-2 px-3 bg-[#080e1c] border border-[#45464c]/10 rounded-md hover:bg-[#242a39] transition-colors text-xs font-medium">
               Google
             </button>
             <button type="button" className="cursor-pointer flex items-center justify-center gap-1.5 py-2 px-3 bg-[#080e1c] border border-[#45464c]/10 rounded-md hover:bg-[#242a39] transition-colors text-xs font-medium">

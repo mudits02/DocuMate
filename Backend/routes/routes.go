@@ -16,6 +16,8 @@ func SetupRoutes(r *gin.Engine) {
 			auth.GET("/google", controllers.GoogleLogin)
 			auth.GET("/google/callback", controllers.GoogleCallback)
 			auth.GET("/me", controllers.GetMe)
+			auth.POST("/refresh", controllers.RefreshToken)
+			auth.POST("/logout", controllers.Logout)
 		}
 	}
 }

@@ -3,6 +3,7 @@ import App from "./App";
 import Auth from './Components/Auth/Auth.jsx'
 import Dashboard from "./Components/Dashboard/Dashboard.jsx";
 import Body from "./Body.jsx";
+import AuthCallback from "./Components/Auth/AuthCallback.jsx";
 
 
 export const routes = createBrowserRouter([{
@@ -10,8 +11,8 @@ export const routes = createBrowserRouter([{
     element: <App />,
     children: [
         {
-            path: '/',
-            element: <Body />
+            index:true,
+            element: <Auth />
         },
         {
             path: '/login',
@@ -20,6 +21,10 @@ export const routes = createBrowserRouter([{
         {
             path: '/dashboard',
             element: <Dashboard />
+        },
+        {
+            path: '/auth/callback',
+            element: <AuthCallback />
         }
     ]
 }])

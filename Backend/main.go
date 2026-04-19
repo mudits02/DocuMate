@@ -8,7 +8,9 @@ import (
 )
 
 func main() {
+	config.LoadEnv()
 	config.ConnectDB()
+	config.SetupGoogleOAuth()
 
 	r := gin.Default()
 
