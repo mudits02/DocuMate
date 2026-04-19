@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"documate/services"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +12,7 @@ func GoogleLogin(c *gin.Context) {
 	// Generate a random state (for CSRF protection)
 	state := "random_state_string" // TODO: make this truly random later
 	url := services.GetGoogleAuthURL(state)
+	fmt.Println(url)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 

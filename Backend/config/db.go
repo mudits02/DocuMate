@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/glebarez/sqlite"
 	"github.com/joho/godotenv"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -19,7 +19,7 @@ func LoadEnv() {
 }
 
 func ConnectDB() {
-	db, err := gorm.Open(sqlite.Open("documate.db"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("file:documate.db?cache=shared"), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
