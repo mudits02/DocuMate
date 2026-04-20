@@ -31,4 +31,3 @@ VITE v8.0.8  ready in 290 ms
 
 1. "/login" -> Redirects to the **Login** Page. Currently, only ***Google*** auth is working. **Gitlab** and **Github** authentication under development <br><br>
 2. "/dashboard" -> **Dashboard** page , which the user will see after successful auth. Currently under development<br><br>
-
