@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -73,14 +74,11 @@ func FindOrCreateGoogleUser(info *GoogleUserInfo) (*models.User, error) {
 
 // --- Generate JWT Access Token ---
 func GenerateAccessToken(userID uint) (string, error) {
-	expiryHours, _ := strconv.Atoi(config.GetEnv("JWT_EXPIRY_HOURS"))
-	if expiryHours == 0 {
-		expiryHours = 15
-	}
+	expiry := getAccessTokenTTL()
 
 	claims := jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(time.Duration(expiryHours) * time.Minute).Unix(),
+		"exp":     time.Now().Add(expiry).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -106,6 +104,9 @@ func GenerateRefreshToken(userID uint) (string, error) {
 // --- Validate JWT Token ---
 func ValidateToken(tokenStr string) (uint, error) {
 	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+		if t.Method != jwt.SigningMethodHS256 {
+			return nil, errors.New("unexpected signing method")
+		}
 		return []byte(config.GetEnv("JWT_SECRET")), nil
 	})
 	if err != nil || !token.Valid {
@@ -134,11 +135,22 @@ func GetUserByID(id uint) (*models.User, error) {
 func SetRefreshCookie(c interface {
 	SetCookie(string, string, int, string, string, bool, bool)
 }, token string) {
-	days, _ := strconv.Atoi(config.GetEnv("REFRESH_TOKEN_EXPIRY_DAYS"))
-	if days == 0 {
-		days = 7
+	c.SetCookie("refresh_token", token, getRefreshCookieMaxAge(), "/", "", useSecureCookies(), true)
+}
+
+func ClearRefreshCookie(c interface {
+	SetCookie(string, string, int, string, string, bool, bool)
+}) {
+	c.SetCookie("refresh_token", "", -1, "/", "", useSecureCookies(), true)
+}
+
+func GetFrontendURL() string {
+	frontendURL := config.GetEnv("FRONTEND_URL")
+	if frontendURL == "" {
+		return "http://localhost:5173"
 	}
-	c.SetCookie("refresh_token", token, days*24*60*60, "/", "", false, true)
+
+	return strings.TrimRight(frontendURL, "/")
 }
 
 // --- Get User Info from Google API ---
@@ -153,4 +165,31 @@ func GetUserInfoFromGoogle(accessToken string) (*GoogleUserInfo, error) {
 	var info GoogleUserInfo
 	json.Unmarshal(body, &info)
 	return &info, nil
+}
+
+func getAccessTokenTTL() time.Duration {
+	expiryMinutes, _ := strconv.Atoi(config.GetEnv("JWT_EXPIRY_MINUTES"))
+	if expiryMinutes > 0 {
+		return time.Duration(expiryMinutes) * time.Minute
+	}
+
+	expiryHours, _ := strconv.Atoi(config.GetEnv("JWT_EXPIRY_HOURS"))
+	if expiryHours > 0 {
+		return time.Duration(expiryHours) * time.Hour
+	}
+
+	return 15 * time.Minute
+}
+
+func getRefreshCookieMaxAge() int {
+	days, _ := strconv.Atoi(config.GetEnv("REFRESH_TOKEN_EXPIRY_DAYS"))
+	if days == 0 {
+		days = 7
+	}
+
+	return days * 24 * 60 * 60
+}
+
+func useSecureCookies() bool {
+	return strings.EqualFold(config.GetEnv("COOKIE_SECURE"), "true")
 }

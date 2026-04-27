@@ -2,6 +2,7 @@ package routes
 
 import (
 	"documate/controllers"
+	"documate/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,9 +16,9 @@ func SetupRoutes(r *gin.Engine) {
 			auth.POST("/login", controllers.Login)
 			auth.GET("/google", controllers.GoogleLogin)
 			auth.GET("/google/callback", controllers.GoogleCallback)
-			auth.GET("/me", controllers.GetMe)
 			auth.POST("/refresh", controllers.RefreshToken)
 			auth.POST("/logout", controllers.Logout)
+			auth.GET("/me", middleware.AuthMiddleware(), controllers.GetMe)
 		}
 	}
 }

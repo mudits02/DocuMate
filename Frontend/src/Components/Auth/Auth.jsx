@@ -1,17 +1,8 @@
-// import { useState } from "react";
+import { loginWithGoogle } from "../../Redux/Slice/authActions.jsx";
 
 const Auth = () => {
-
-  // const [emailId, setEmailId] = useState("");
-  // const [password, setPassword] = useState("");
-
-  const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:8080/api/auth/google';
-  }
-
   return (
     <div className="min-h-screen bg-[#0d1321] font-['Inter'] text-[#dde2f6] flex flex-col items-center justify-center relative overflow-hidden">
-      {/* Background dot pattern */}
       <div className="absolute inset-0 pointer-events-none opacity-20" style={{
         backgroundImage: 'radial-gradient(#242a39 1px, transparent 1px)',
         backgroundSize: '40px 40px'
@@ -19,10 +10,8 @@ const Auth = () => {
       <div className="absolute -top-[10%] -left-[5%] w-[40%] h-[40%] bg-[#00dfc1]/5 blur-[120px] rounded-full" />
       <div className="absolute -bottom-[10%] -right-[5%] w-[40%] h-[40%] bg-[#287af3]/5 blur-[120px] rounded-full" />
 
-      {/* Main Content */}
       <main className="relative z-10 w-full max-w-[440px] px-6">
 
-        {/* Logo & Title */}
         <div className="flex flex-col items-center mb-10">
           <div className="flex items-center gap-2 mb-3">
             <span className="font-['Space_Grotesk'] font-bold text-3xl tracking-tight">Documate</span>
@@ -30,7 +19,6 @@ const Auth = () => {
           <p className="font-['Space_Grotesk'] text-xl font-medium text-[#c6c6cc]">Welcome back, Architect.</p>
         </div>
 
-        {/* Card */}
         <div className="bg-[#151b2a] p-8 rounded-xl ring-1 ring-[#45464c]/15 shadow-2xl">
           <form className="space-y-5">
 
@@ -40,6 +28,7 @@ const Auth = () => {
                 <input
                   type="email"
                   placeholder="name@company.com"
+                  disabled
                   className="w-full bg-[#080e1c] border-none pl-10 pr-4 py-3 rounded-md text-[#dde2f6] placeholder:text-[#909096] focus:outline-none"
                 />
               </div>
@@ -55,6 +44,7 @@ const Auth = () => {
                 <input
                   type="password"
                   placeholder="••••••••"
+                  disabled
                   className="w-full bg-[#080e1c] border-none pl-10 pr-4 py-3 rounded-md text-[#dde2f6] placeholder:text-[#909096] focus:outline-none"
                 />
               </div>
@@ -63,13 +53,13 @@ const Auth = () => {
             {/* Sign In Button */}
             <button
               type="submit"
+              disabled
               className="w-full bg-[#06d6ba] hover:bg-[#237f71] text-[#00382f] font-['Space_Grotesk'] font-bold py-3.5 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-[#00dfc1]/10 cursor-pointer"
             >
-              Sign In to Dashboard
+              Email auth coming soon
             </button>
           </form>
 
-          {/* Divider */}
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-[#45464c]/10" />
@@ -80,7 +70,7 @@ const Auth = () => {
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <button onClick={handleGoogleLogin} type="button" className="cursor-pointer flex items-center justify-center gap-1.5 py-2 px-3 bg-[#080e1c] border border-[#45464c]/10 rounded-md hover:bg-[#242a39] transition-colors text-xs font-medium">
+            <button onClick={loginWithGoogle} type="button" className="cursor-pointer flex items-center justify-center gap-1.5 py-2 px-3 bg-[#080e1c] border border-[#45464c]/10 rounded-md hover:bg-[#242a39] transition-colors text-xs font-medium">
               Google
             </button>
             <button type="button" className="cursor-pointer flex items-center justify-center gap-1.5 py-2 px-3 bg-[#080e1c] border border-[#45464c]/10 rounded-md hover:bg-[#242a39] transition-colors text-xs font-medium">
@@ -91,15 +81,8 @@ const Auth = () => {
             </button>
           </div>
         </div>
-
-        {/* Sign Up Link */}
-        <p className="mt-8 text-center text-[#c6c6cc] text-sm">
-          Don't have an account?
-          <a href="#" className="text-[#00dfc1] font-semibold ml-2">Sign Up</a>
-        </p>
       </main>
 
-      {/* Bottom Metadata */}
       <div className="absolute bottom-8 left-8 right-8 flex justify-between items-start pointer-events-none select-none">
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-['Space_Grotesk'] text-[#909096] uppercase tracking-widest">System Status</span>
@@ -114,7 +97,7 @@ const Auth = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default Auth;

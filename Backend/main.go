@@ -2,6 +2,7 @@ package main
 
 import (
 	"documate/config"
+	"documate/middleware"
 	"documate/routes"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,7 @@ func main() {
 	config.SetupGoogleOAuth()
 
 	r := gin.Default()
+	r.Use(middleware.CORSMiddleware())
 
 	routes.SetupRoutes(r)
 
