@@ -1,41 +1,54 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { useNavigate, useSearchParams } from "react-router-dom"
-import { setCredentials } from "../../Redux/Slice/authSlice";
-
+import { bootstrapAuth } from "../../Redux/Slice/authActions.jsx";
 
 const AuthCallback = () => {
-    const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
-    const dispatch = useDispatch();
+  const [searchParams] = useSearchParams();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const [isFinalizing, setIsFinalizing] = useState(true);
 
-    useEffect(() => {
-        const token = searchParams.get('token');
-        const name = searchParams.get('name');
-        const email = searchParams.get('email');
-        const avatar = searchParams.get('avatar');
+  useEffect(() => {
+    let isMounted = true;
 
-        if(token)
-        {
-            dispatch(setCredentials({
-                token,
-                user: {name, email, avatar}
-            }))
-            navigate('/dashboard');
-        }
+    const finalizeLogin = async () => {
+      const didRestoreSession = await dispatch(bootstrapAuth());
 
-        else
-        {
-            navigate('/login');
-        }
-    }, [])
+      if (!isMounted) {
+        return;
+      }
 
-    return(
-        <div className="min-h-screen bg-[#0d1321] flex items-center justify-center">
-            <p className="text-[#dde2f6]">Signing you in...</p>
-        </div>
-    )
-}
+      setIsFinalizing(false);
+
+      if (didRestoreSession) {
+        navigate("/dashboard", { replace: true });
+      } else {
+        navigate("/login", { replace: true });
+      }
+    };
+
+    if (searchParams.get("error")) {
+      navigate("/login", { replace: true });
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    finalizeLogin();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [dispatch, navigate, searchParams]);
+
+  return (
+    <div className="min-h-screen bg-[#0d1321] flex items-center justify-center">
+      <p className="text-[#dde2f6] font-['Space_Grotesk'] text-lg">
+        {isFinalizing ? "Completing your secure sign-in..." : "Redirecting..."}
+      </p>
+    </div>
+  );
+};
 
 export default AuthCallback;

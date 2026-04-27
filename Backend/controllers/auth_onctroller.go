@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"documate/services"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,7 +11,6 @@ func GoogleLogin(c *gin.Context) {
 	// Generate a random state (for CSRF protection)
 	state := "random_state_string" // TODO: make this truly random later
 	url := services.GetGoogleAuthURL(state)
-	fmt.Println(url)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
@@ -37,28 +35,16 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Generate tokens
-	accessToken, err := services.GenerateAccessToken(user.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
-		return
-	}
-
+	//Generate Refresh Token
 	refreshToken, err := services.GenerateRefreshToken(user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
 		return
 	}
 
-	// Set refresh token in httpOnly cookie
-	c.SetCookie("refresh_token", refreshToken, 7*24*60*60, "/", "", false, true)
+	services.SetRefreshCookie(c, refreshToken)
 
-	// Redirect frontend with access token
-	c.Redirect(http.StatusTemporaryRedirect,
-		"http://localhost:5173/auth/callback?token="+accessToken+
-			"&name="+user.Name+
-			"&email="+user.Email+
-			"&avatar="+user.Avatar)
+	c.Redirect(http.StatusTemporaryRedirect, services.GetFrontendURL()+"/auth/callback")
 }
 
 func GetMe(c *gin.Context) {
@@ -75,10 +61,11 @@ func GetMe(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":     user.ID,
-		"name":   user.Name,
-		"email":  user.Email,
-		"avatar": user.Avatar,
+		"id":       user.ID,
+		"name":     user.Name,
+		"email":    user.Email,
+		"avatar":   user.Avatar,
+		"provider": user.Provider,
 	})
 }
 
@@ -101,11 +88,14 @@ func RefreshToken(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": newAccessToken})
+	c.JSON(http.StatusOK, gin.H{
+		"token":      newAccessToken,
+		"token_type": "Bearer",
+	})
 }
 
 func Logout(c *gin.Context) {
-	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
+	services.ClearRefreshCookie(c)
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 

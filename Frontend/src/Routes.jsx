@@ -2,8 +2,9 @@ import { createBrowserRouter } from "react-router-dom";
 import App from "./App";
 import Auth from './Components/Auth/Auth.jsx'
 import Dashboard from "./Components/Dashboard/Dashboard.jsx";
-import Body from "./Body.jsx";
 import AuthCallback from "./Components/Auth/AuthCallback.jsx";
+import GuestRoute from "./Components/routes/GuestRoute.jsx";
+import ProtectedRoute from "./Components/routes/ProtectedRoute.jsx";
 
 
 export const routes = createBrowserRouter([{
@@ -12,15 +13,15 @@ export const routes = createBrowserRouter([{
     children: [
         {
             index:true,
-            element: <Auth />
+            element: <GuestRoute><Auth /></GuestRoute>
         },
         {
             path: '/login',
-            element: <Auth />
+            element: <GuestRoute><Auth /></GuestRoute>
         },
         {
             path: '/dashboard',
-            element: <Dashboard />
+            element: <ProtectedRoute><Dashboard /></ProtectedRoute>
         },
         {
             path: '/auth/callback',
