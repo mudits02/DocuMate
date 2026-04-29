@@ -7,6 +7,7 @@ import {
 import {
   getCurrentUser,
   logoutRequest,
+  startGithubLogin,
   startGoogleLogin,
 } from "../../api/authApi";
 import {
@@ -65,3 +66,7 @@ export const setupUnauthorizedHandling = (dispatch) => {
 export const loginWithGoogle = () => {
   startGoogleLogin();
 };
+
+export const loginWithGithub = () => {
+    startGithubLogin();
+}

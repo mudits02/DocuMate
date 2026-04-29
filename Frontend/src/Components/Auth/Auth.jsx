@@ -1,4 +1,4 @@
-import { loginWithGoogle } from "../../Redux/Slice/authActions.jsx";
+import { loginWithGithub, loginWithGoogle } from "../../Redux/Slice/authActions.jsx";
 
 const Auth = () => {
   return (
@@ -10,7 +10,7 @@ const Auth = () => {
       <div className="absolute -top-[10%] -left-[5%] w-[40%] h-[40%] bg-[#00dfc1]/5 blur-[120px] rounded-full" />
       <div className="absolute -bottom-[10%] -right-[5%] w-[40%] h-[40%] bg-[#287af3]/5 blur-[120px] rounded-full" />
 
-      <main className="relative z-10 w-full max-w-[440px] px-6">
+      <main className="relative z-10 w-full max-w-110 px-6">
 
         <div className="flex flex-col items-center mb-10">
           <div className="flex items-center gap-2 mb-3">
@@ -73,7 +73,7 @@ const Auth = () => {
             <button onClick={loginWithGoogle} type="button" className="cursor-pointer flex items-center justify-center gap-1.5 py-2 px-3 bg-[#080e1c] border border-[#45464c]/10 rounded-md hover:bg-[#242a39] transition-colors text-xs font-medium">
               Google
             </button>
-            <button type="button" className="cursor-pointer flex items-center justify-center gap-1.5 py-2 px-3 bg-[#080e1c] border border-[#45464c]/10 rounded-md hover:bg-[#242a39] transition-colors text-xs font-medium">
+            <button onClick={loginWithGithub} type="button" className="cursor-pointer flex items-center justify-center gap-1.5 py-2 px-3 bg-[#080e1c] border border-[#45464c]/10 rounded-md hover:bg-[#242a39] transition-colors text-xs font-medium">
               GitHub
             </button>
             <button type="button" className="cursor-pointer flex items-center justify-center gap-1.5 py-2 px-3 bg-[#080e1c] border border-[#45464c]/10 rounded-md hover:bg-[#242a39] transition-colors text-xs font-medium">

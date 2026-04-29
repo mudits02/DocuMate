@@ -8,8 +8,7 @@ import (
 )
 
 func GoogleLogin(c *gin.Context) {
-	// Generate a random state (for CSRF protection)
-	state := "random_state_string" // TODO: make this truly random later
+	state := "random_state_string"
 	url := services.GetGoogleAuthURL(state)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
@@ -21,21 +20,18 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Get user info from Google
 	userInfo, err := services.GetGoogleUserInfo(code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Find or create user in DB
 	user, err := services.FindOrCreateGoogleUser(userInfo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save user"})
 		return
 	}
 
-	//Generate Refresh Token
 	refreshToken, err := services.GenerateRefreshToken(user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
@@ -43,7 +39,41 @@ func GoogleCallback(c *gin.Context) {
 	}
 
 	services.SetRefreshCookie(c, refreshToken)
+	c.Redirect(http.StatusTemporaryRedirect, services.GetFrontendURL()+"/auth/callback")
+}
 
+func GitHubLogin(c *gin.Context) {
+	state := "random_state_string"
+	url := services.GetGitHubAuthURL(state)
+	c.Redirect(http.StatusTemporaryRedirect, url)
+}
+
+func GitHubCallback(c *gin.Context) {
+	code := c.Query("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "code not found"})
+		return
+	}
+
+	userInfo, err := services.GetGitHubUserInfo(code)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := services.FindOrCreateGitHubUser(userInfo)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save github user"})
+		return
+	}
+
+	refreshToken, err := services.GenerateRefreshToken(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate refresh token"})
+		return
+	}
+
+	services.SetRefreshCookie(c, refreshToken)
 	c.Redirect(http.StatusTemporaryRedirect, services.GetFrontendURL()+"/auth/callback")
 }
 

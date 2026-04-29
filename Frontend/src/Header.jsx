@@ -23,9 +23,6 @@ const Header = () => {
           <p className="font-['Space_Grotesk'] text-xl text-[#dde2f6] font-semibold">
             Documate
           </p>
-          <p className="text-xs text-[#909096]">
-            Redux auth shell with guarded routes and silent refresh
-          </p>
         </div>
 
         <div className="flex items-center gap-4">

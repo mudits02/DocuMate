@@ -14,8 +14,13 @@ func SetupRoutes(r *gin.Engine) {
 		{
 			auth.POST("/register", controllers.Register)
 			auth.POST("/login", controllers.Login)
+
 			auth.GET("/google", controllers.GoogleLogin)
 			auth.GET("/google/callback", controllers.GoogleCallback)
+
+			auth.GET("/github", controllers.GitHubLogin)
+			auth.GET("/github/callback", controllers.GitHubCallback)
+
 			auth.POST("/refresh", controllers.RefreshToken)
 			auth.POST("/logout", controllers.Logout)
 			auth.GET("/me", middleware.AuthMiddleware(), controllers.GetMe)

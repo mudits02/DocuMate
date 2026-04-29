@@ -14,3 +14,8 @@ export const startGoogleLogin = async () => {
     const BASE_URL = import.meta.env.VITE_API_URL ?? "";
     window.location.href = `${BASE_URL}/api/auth/google`;
 }
+
+export const startGithubLogin = async () => {
+    const BASE_URL = import.meta.env.VITE_API_URL ?? "";
+    window.location.href = `${BASE_URL}/api/auth/github`;
+}
