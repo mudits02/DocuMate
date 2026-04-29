@@ -12,6 +12,7 @@ func main() {
 	config.LoadEnv()
 	config.ConnectDB()
 	config.SetupGoogleOAuth()
+	config.SetupGitHubOAuth()
 
 	r := gin.Default()
 	r.Use(middleware.CORSMiddleware())

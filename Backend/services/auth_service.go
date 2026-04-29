@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -16,7 +15,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// --- Google User Info struct ---
 type GoogleUserInfo struct {
 	ID      string `json:"id"`
 	Email   string `json:"email"`
@@ -24,12 +22,28 @@ type GoogleUserInfo struct {
 	Picture string `json:"picture"`
 }
 
-// --- Get Google Auth URL ---
+type GitHubUserInfo struct {
+	ID        int64  `json:"id"`
+	Login     string `json:"login"`
+	Name      string `json:"name"`
+	AvatarURL string `json:"avatar_url"`
+	Email     string `json:"email"`
+}
+
+type GitHubEmail struct {
+	Email    string `json:"email"`
+	Primary  bool   `json:"primary"`
+	Verified bool   `json:"verified"`
+}
+
 func GetGoogleAuthURL(state string) string {
 	return config.GoogleOAuthConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
 }
 
-// --- Exchange code for user info ---
+func GetGitHubAuthURL(state string) string {
+	return config.GitHubOAuthConfig.AuthCodeURL(state)
+}
+
 func GetGoogleUserInfo(code string) (*GoogleUserInfo, error) {
 	token, err := config.GoogleOAuthConfig.Exchange(context.Background(), code)
 	if err != nil {
@@ -50,29 +64,153 @@ func GetGoogleUserInfo(code string) (*GoogleUserInfo, error) {
 	return &userInfo, nil
 }
 
-// --- Find or Create User from Google ---
+func GetGitHubUserInfo(code string) (*GitHubUserInfo, error) {
+	token, err := config.GitHubOAuthConfig.Exchange(context.Background(), code)
+	if err != nil {
+		return nil, errors.New("failed to exchange github token: " + err.Error())
+	}
+
+	client := config.GitHubOAuthConfig.Client(context.Background(), token)
+
+	profileResp, err := client.Get("https://api.github.com/user")
+	if err != nil {
+		return nil, errors.New("failed to get github user profile: " + err.Error())
+	}
+	defer profileResp.Body.Close()
+
+	profileBody, _ := io.ReadAll(profileResp.Body)
+	var userInfo GitHubUserInfo
+	json.Unmarshal(profileBody, &userInfo)
+
+	emailResp, err := client.Get("https://api.github.com/user/emails")
+	if err != nil {
+		return nil, errors.New("failed to get github emails: " + err.Error())
+	}
+	defer emailResp.Body.Close()
+
+	emailBody, _ := io.ReadAll(emailResp.Body)
+	var emails []GitHubEmail
+	json.Unmarshal(emailBody, &emails)
+
+	verifiedEmail := getPreferredGitHubEmail(emails)
+	if verifiedEmail == "" {
+		return nil, errors.New("github account has no verified email")
+	}
+
+	userInfo.Email = verifiedEmail
+
+	if strings.TrimSpace(userInfo.Name) == "" {
+		userInfo.Name = userInfo.Login
+	}
+
+	return &userInfo, nil
+}
+
+func getPreferredGitHubEmail(emails []GitHubEmail) string {
+	for _, email := range emails {
+		if email.Primary && email.Verified {
+			return email.Email
+		}
+	}
+
+	for _, email := range emails {
+		if email.Verified {
+			return email.Email
+		}
+	}
+
+	return ""
+}
+
 func FindOrCreateGoogleUser(info *GoogleUserInfo) (*models.User, error) {
 	var user models.User
 
-	result := config.DB.Where("google_id = ?", info.ID).First(&user)
-	if result.Error != nil {
-		// User doesn't exist, create one
-		user = models.User{
-			Name:     info.Name,
-			Email:    info.Email,
-			GoogleID: info.ID,
-			Provider: "google",
-			Avatar:   info.Picture,
-		}
-		if err := config.DB.Create(&user).Error; err != nil {
+	if err := config.DB.Where("google_id = ?", info.ID).First(&user).Error; err == nil {
+		user.Name = info.Name
+		user.Avatar = info.Picture
+		user.Provider = "google"
+		if err := config.DB.Save(&user).Error; err != nil {
 			return nil, err
 		}
+		return &user, nil
+	}
+
+	if info.Email != "" {
+		if err := config.DB.Where("email = ?", info.Email).First(&user).Error; err == nil {
+			if user.GoogleID == "" {
+				user.GoogleID = info.ID
+			}
+			user.Name = info.Name
+			user.Avatar = info.Picture
+			user.Provider = "google"
+
+			if err := config.DB.Save(&user).Error; err != nil {
+				return nil, err
+			}
+			return &user, nil
+		}
+	}
+
+	user = models.User{
+		Name:     info.Name,
+		Email:    info.Email,
+		GoogleID: info.ID,
+		Provider: "google",
+		Avatar:   info.Picture,
+	}
+
+	if err := config.DB.Create(&user).Error; err != nil {
+		return nil, err
 	}
 
 	return &user, nil
 }
 
-// --- Generate JWT Access Token ---
+func FindOrCreateGitHubUser(info *GitHubUserInfo) (*models.User, error) {
+	var user models.User
+	githubID := strconv.FormatInt(info.ID, 10)
+
+	if err := config.DB.Where("git_hub_id = ?", githubID).First(&user).Error; err == nil {
+		user.Name = info.Name
+		user.Avatar = info.AvatarURL
+		user.Provider = "github"
+		if err := config.DB.Save(&user).Error; err != nil {
+			return nil, err
+		}
+		return &user, nil
+	}
+
+	if info.Email != "" {
+		if err := config.DB.Where("email = ?", info.Email).First(&user).Error; err == nil {
+			if user.GitHubID == "" {
+				user.GitHubID = githubID
+			}
+			user.Name = info.Name
+			user.Avatar = info.AvatarURL
+			user.Provider = "github"
+
+			if err := config.DB.Save(&user).Error; err != nil {
+				return nil, err
+			}
+			return &user, nil
+		}
+	}
+
+	user = models.User{
+		Name:     info.Name,
+		Email:    info.Email,
+		GitHubID: githubID,
+		Provider: "github",
+		Avatar:   info.AvatarURL,
+	}
+
+	if err := config.DB.Create(&user).Error; err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 func GenerateAccessToken(userID uint) (string, error) {
 	expiry := getAccessTokenTTL()
 
@@ -85,7 +223,6 @@ func GenerateAccessToken(userID uint) (string, error) {
 	return token.SignedString([]byte(config.GetEnv("JWT_SECRET")))
 }
 
-// --- Generate Refresh Token ---
 func GenerateRefreshToken(userID uint) (string, error) {
 	expiryDays, _ := strconv.Atoi(config.GetEnv("REFRESH_TOKEN_EXPIRY_DAYS"))
 	if expiryDays == 0 {
@@ -101,7 +238,6 @@ func GenerateRefreshToken(userID uint) (string, error) {
 	return token.SignedString([]byte(config.GetEnv("JWT_SECRET")))
 }
 
-// --- Validate JWT Token ---
 func ValidateToken(tokenStr string) (uint, error) {
 	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
 		if t.Method != jwt.SigningMethodHS256 {
@@ -122,7 +258,6 @@ func ValidateToken(tokenStr string) (uint, error) {
 	return userID, nil
 }
 
-// --- Get User by ID ---
 func GetUserByID(id uint) (*models.User, error) {
 	var user models.User
 	if err := config.DB.First(&user, id).Error; err != nil {
@@ -131,7 +266,6 @@ func GetUserByID(id uint) (*models.User, error) {
 	return &user, nil
 }
 
-// --- Set Refresh Token Cookie ---
 func SetRefreshCookie(c interface {
 	SetCookie(string, string, int, string, string, bool, bool)
 }, token string) {
@@ -151,20 +285,6 @@ func GetFrontendURL() string {
 	}
 
 	return strings.TrimRight(frontendURL, "/")
-}
-
-// --- Get User Info from Google API ---
-func GetUserInfoFromGoogle(accessToken string) (*GoogleUserInfo, error) {
-	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + accessToken)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	var info GoogleUserInfo
-	json.Unmarshal(body, &info)
-	return &info, nil
 }
 
 func getAccessTokenTTL() time.Duration {
