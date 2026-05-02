@@ -25,5 +25,11 @@ func SetupRoutes(r *gin.Engine) {
 			auth.POST("/logout", controllers.Logout)
 			auth.GET("/me", middleware.AuthMiddleware(), controllers.GetMe)
 		}
+
+		github := api.Group("/github")
+		github.Use(middleware.AuthMiddleware())
+		{
+			github.GET("/repos", controllers.GetGitHubRepos)
+		}
 	}
 }

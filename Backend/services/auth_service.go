@@ -6,7 +6,9 @@ import (
 	"documate/models"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -34,6 +36,14 @@ type GitHubEmail struct {
 	Email    string `json:"email"`
 	Primary  bool   `json:"primary"`
 	Verified bool   `json:"verified"`
+}
+
+type GitHubRepo struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	FullName string `json:"full_name"`
+	Private  bool   `json:"private"`
+	HTMLURL  string `json:"html_url"`
 }
 
 func GetGoogleAuthURL(state string) string {
@@ -67,46 +77,80 @@ func GetGoogleUserInfo(code string) (*GoogleUserInfo, error) {
 	return &userInfo, nil
 }
 
-func GetGitHubUserInfo(code string) (*GitHubUserInfo, error) {
+func ExchangeGitHubCode(code string) (*oauth2.Token, error) {
 	token, err := config.GitHubOAuthConfig.Exchange(context.Background(), code)
 	if err != nil {
 		return nil, errors.New("failed to exchange github token: " + err.Error())
 	}
 
-	client := config.GitHubOAuthConfig.Client(context.Background(), token)
+	return token, nil
+}
 
-	profileResp, err := client.Get("https://api.github.com/user")
+func GetGitHubUserInfo(accessToken string) (*GitHubUserInfo, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, errors.New("failed to get github user profile: " + err.Error())
 	}
-	defer profileResp.Body.Close()
+	defer resp.Body.Close()
 
-	profileBody, _ := io.ReadAll(profileResp.Body)
-	var userInfo GitHubUserInfo
-	json.Unmarshal(profileBody, &userInfo)
-
-	emailResp, err := client.Get("https://api.github.com/user/emails")
-	if err != nil {
-		return nil, errors.New("failed to get github emails: " + err.Error())
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("github profile request failed: %s", string(body))
 	}
-	defer emailResp.Body.Close()
 
-	emailBody, _ := io.ReadAll(emailResp.Body)
-	var emails []GitHubEmail
-	json.Unmarshal(emailBody, &emails)
+	var userInfo GitHubUserInfo
+	json.Unmarshal(body, &userInfo)
 
-	verifiedEmail := getPreferredGitHubEmail(emails)
-	if verifiedEmail == "" {
+	emails, err := GetGitHubEmails(accessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	email := getPreferredGitHubEmail(emails)
+	if email == "" {
 		return nil, errors.New("github account has no verified email")
 	}
 
-	userInfo.Email = verifiedEmail
+	userInfo.Email = email
 
 	if strings.TrimSpace(userInfo.Name) == "" {
 		userInfo.Name = userInfo.Login
 	}
 
 	return &userInfo, nil
+}
+
+func GetGitHubEmails(accessToken string) ([]GitHubEmail, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/user/emails", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, errors.New("failed to get github emails: " + err.Error())
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("github email request failed: %s", string(body))
+	}
+
+	var emails []GitHubEmail
+	json.Unmarshal(body, &emails)
+	return emails, nil
 }
 
 func getPreferredGitHubEmail(emails []GitHubEmail) string {
@@ -169,14 +213,17 @@ func FindOrCreateGoogleUser(info *GoogleUserInfo) (*models.User, error) {
 	return &user, nil
 }
 
-func FindOrCreateGitHubUser(info *GitHubUserInfo) (*models.User, error) {
+func FindOrCreateGitHubUser(info *GitHubUserInfo, accessToken string) (*models.User, error) {
 	var user models.User
 	githubID := strconv.FormatInt(info.ID, 10)
 
-	if err := config.DB.Where("git_hub_id = ?", githubID).First(&user).Error; err == nil {
+	if err := config.DB.Where("github_id = ?", githubID).First(&user).Error; err == nil {
 		user.Name = info.Name
 		user.Avatar = info.AvatarURL
 		user.Provider = "github"
+		user.GitHubUsername = info.Login
+		user.GitHubAccessToken = accessToken
+
 		if err := config.DB.Save(&user).Error; err != nil {
 			return nil, err
 		}
@@ -191,6 +238,8 @@ func FindOrCreateGitHubUser(info *GitHubUserInfo) (*models.User, error) {
 			user.Name = info.Name
 			user.Avatar = info.AvatarURL
 			user.Provider = "github"
+			user.GitHubUsername = info.Login
+			user.GitHubAccessToken = accessToken
 
 			if err := config.DB.Save(&user).Error; err != nil {
 				return nil, err
@@ -200,11 +249,13 @@ func FindOrCreateGitHubUser(info *GitHubUserInfo) (*models.User, error) {
 	}
 
 	user = models.User{
-		Name:     info.Name,
-		Email:    info.Email,
-		GitHubID: githubID,
-		Provider: "github",
-		Avatar:   info.AvatarURL,
+		Name:              info.Name,
+		Email:             info.Email,
+		GitHubID:          githubID,
+		GitHubUsername:    info.Login,
+		GitHubAccessToken: accessToken,
+		Provider:          "github",
+		Avatar:            info.AvatarURL,
 	}
 
 	if err := config.DB.Create(&user).Error; err != nil {
@@ -212,6 +263,41 @@ func FindOrCreateGitHubUser(info *GitHubUserInfo) (*models.User, error) {
 	}
 
 	return &user, nil
+}
+
+func GetGitHubReposForUser(userID uint) ([]GitHubRepo, error) {
+	user, err := GetUserByID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.TrimSpace(user.GitHubAccessToken) == "" {
+		return nil, errors.New("github account is not connected")
+	}
+
+	req, err := http.NewRequest("GET", "https://api.github.com/user/repos?visibility=all&affiliation=owner&sort=updated&per_page=100", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+user.GitHubAccessToken)
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, errors.New("failed to fetch github repos: " + err.Error())
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("github repos request failed: %s", string(body))
+	}
+
+	var repos []GitHubRepo
+	json.Unmarshal(body, &repos)
+
+	return repos, nil
 }
 
 func GenerateAccessToken(userID uint) (string, error) {

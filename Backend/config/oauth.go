@@ -30,6 +30,7 @@ func SetupGitHubOAuth() {
 		Scopes: []string{
 			"read:user",
 			"user:email",
+			"repo",
 		},
 		Endpoint: github.Endpoint,
 	}

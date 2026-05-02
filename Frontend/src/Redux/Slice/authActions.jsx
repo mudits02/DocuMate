@@ -15,7 +15,11 @@ import {
   setSession,
   clearSession,
   setAuthError,
+  fetchReposStart,
+  setRepos,
+  setReposError
 } from "./authSlice";
+import { getGitHubRepos } from "../../api/githubApi";
 
 let bootstrapPromise = null;
 
@@ -44,6 +48,28 @@ export const bootstrapAuth = () => async (dispatch) => {
 
   return bootstrapPromise;
 };
+
+export const fetchReposForGithubUser = () => async (dispatch, getState) => {
+  const {auth} = getState();
+
+  if(!auth.user?.github_user && auth.user?.provider !== 'github')
+  {
+    return;
+  }
+
+  dispatch(fetchReposStart());
+
+  try{
+    const repos = await getGitHubRepos();
+    dispatch(setRepos(repos));
+  }
+  catch(error)
+  {
+    dispatch(
+      setReposError(error?.response?.data?.error ?? "Failed to fetch repositories")
+    );
+  }
+}
 
 export const logoutUser = () => async (dispatch) => {
   try {

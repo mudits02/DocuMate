@@ -55,13 +55,19 @@ func GitHubCallback(c *gin.Context) {
 		return
 	}
 
-	userInfo, err := services.GetGitHubUserInfo(code)
+	token, err := services.ExchangeGitHubCode(code)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	user, err := services.FindOrCreateGitHubUser(userInfo)
+	userInfo, err := services.GetGitHubUserInfo(token.AccessToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := services.FindOrCreateGitHubUser(userInfo, token.AccessToken)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save github user"})
 		return
@@ -75,6 +81,22 @@ func GitHubCallback(c *gin.Context) {
 
 	services.SetRefreshCookie(c, refreshToken)
 	c.Redirect(http.StatusTemporaryRedirect, services.GetFrontendURL()+"/auth/callback")
+}
+
+func GetGitHubRepos(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	repos, err := services.GetGitHubReposForUser(userID.(uint))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"repos": repos})
 }
 
 func GetMe(c *gin.Context) {
@@ -91,11 +113,12 @@ func GetMe(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":       user.ID,
-		"name":     user.Name,
-		"email":    user.Email,
-		"avatar":   user.Avatar,
-		"provider": user.Provider,
+		"id":          user.ID,
+		"name":        user.Name,
+		"email":       user.Email,
+		"avatar":      user.Avatar,
+		"provider":    user.Provider,
+		"github_user": user.GitHubID != "",
 	})
 }
 
