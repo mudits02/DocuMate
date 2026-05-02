@@ -41,7 +41,10 @@ func GetGoogleAuthURL(state string) string {
 }
 
 func GetGitHubAuthURL(state string) string {
-	return config.GitHubOAuthConfig.AuthCodeURL(state)
+	return config.GitHubOAuthConfig.AuthCodeURL(
+		state,
+		oauth2.SetAuthURLParam("prompt", "select_account"),
+	)
 }
 
 func GetGoogleUserInfo(code string) (*GoogleUserInfo, error) {
