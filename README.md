@@ -35,4 +35,54 @@ VITE v8.0.8  ready in 290 ms
 
 ## Backend Setup
 
-Coming Soon
+### Prerequisites
+- Go 1.25.0 or higher installed
+- SQLite (included with the project)
+
+### Fresh Start Steps
+
+1. **Navigate to the Backend directory**
+   ````shell
+   cd Backend
+   ````
+
+2. **Download dependencies**
+   ````shell
+   go mod download
+   ````
+
+3. **Verify environment variables** - Ensure `.env` file exists in the Backend directory with all required OAuth and JWT configurations
+
+4. **Run the server**
+   ````shell
+   go run main.go
+   ````
+
+The server will start on **http://localhost:8080** with:
+- SQLite database connection
+- Google OAuth setup
+- GitHub OAuth setup
+- CORS middleware for frontend communication
+
+### Troubleshooting
+
+If you encounter dependency issues:
+````shell
+go mod tidy
+go mod download
+go run main.go
+````
+
+To clean Go cache:
+````shell
+go clean -cache
+````
+
+### Environment Variables Required
+
+The `.env` file should contain:
+- `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET`
+- `GITHUB_CLIENT_ID` & `GITHUB_CLIENT_SECRET`
+- `JWT_SECRET`, `JWT_EXPIRY_HOURS`, `REFRESH_TOKEN_EXPIRY_DAYS`
+- `FRONTEND_URL` (typically http://localhost:5173)
+- `COOKIE_SECURE` (false for local development)
