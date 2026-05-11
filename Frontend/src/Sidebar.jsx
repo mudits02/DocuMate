@@ -156,7 +156,7 @@ const Sidebar = () => {
           >
             <span className="text-[#8995aa] group-hover:text-[#d8deef]">{icons.logout}</span>
             {!isCollapsed && (
-              <span className="text-sm font-semibold tracking-tight">Logout</span>
+              <span className="text-sm font-semibold tracking-tight cursor-pointer">Logout</span>
             )}
           </button>
         </div>
