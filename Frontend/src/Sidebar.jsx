@@ -52,7 +52,7 @@ const Sidebar = () => {
                 <p className="font-['Space_Grotesk'] text-[1.65rem] font-bold leading-none tracking-tight text-[#10e7cd]">
                   Documate
                 </p>
-                <p className="mt-2 text-sm font-medium text-[#69758b]">v1.0.4</p>
+                <p className="mt-2 text-sm font-medium text-[#69758b]">v0.0.1</p>
               </div>
             )}
           </div>
