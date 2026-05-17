@@ -1,12 +1,13 @@
 package services
 
 import (
-	"documate/dto"
+	"documate/DTO"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"path"
 	"sort"
 	"strings"
 )
@@ -121,88 +122,102 @@ func GetRepoFileContentForUser(userID uint, owner, repo, ref, filePath string) (
 }
 
 func buildNestedTree(entries []githubTreeEntry) []dto.TreeNode {
-	root := map[string]*dto.TreeNode{}
+	root := newTreeNodeDraft("", "", "directory", "", 0)
+	nodeByPath := map[string]*treeNodeDraft{"": root}
+
+	var ensureDir func(string) *treeNodeDraft
+	ensureDir = func(dirPath string) *treeNodeDraft {
+		if node, ok := nodeByPath[dirPath]; ok {
+			return node
+		}
+
+		node := newTreeNodeDraft(dirPath, path.Base(dirPath), "directory", "", 0)
+		nodeByPath[dirPath] = node
+
+		parentPath := path.Dir(dirPath)
+		if parentPath == "." {
+			parentPath = ""
+		}
+
+		parent := ensureDir(parentPath)
+		parent.children = append(parent.children, node)
+
+		return node
+	}
 
 	for _, entry := range entries {
 		if entry.Path == "" {
 			continue
 		}
 
-		parts := strings.Split(entry.Path, "/")
-		current := root
-		currentPath := ""
-
-		for index, part := range parts {
-			if currentPath == "" {
-				currentPath = part
-			} else {
-				currentPath = currentPath + "/" + part
-			}
-
-			node, exists := current[currentPath]
-			if !exists {
-				nodeType := "directory"
-				if index == len(parts)-1 && entry.Type == "blob" {
-					nodeType = "file"
-				}
-
-				node = &dto.TreeNode{
-					ID:   currentPath,
-					Name: part,
-					Path: currentPath,
-					Type: nodeType,
-				}
-				current[currentPath] = node
-			}
-
-			if index == len(parts)-1 {
-				node.SHA = entry.SHA
-				node.Size = fmt.Sprintf("%d", entry.Size)
-				switch entry.Type {
-				case "blob":
-					node.Type = "file"
-				case "tree":
-					node.Type = "directory"
-				}
-			}
-
-			if node.Children == nil {
-				node.Children = []dto.TreeNode{}
-			}
-
-			childMap := map[string]*dto.TreeNode{}
-			for childIndex := range node.Children {
-				child := &node.Children[childIndex]
-				childMap[child.Path] = child
-			}
-			current = childMap
+		parentPath := path.Dir(entry.Path)
+		if parentPath == "." {
+			parentPath = ""
 		}
+
+		parent := ensureDir(parentPath)
+		nodeType := "directory"
+		if entry.Type == "blob" {
+			nodeType = "file"
+		}
+
+		if node, exists := nodeByPath[entry.Path]; exists {
+			node.Type = nodeType
+			node.SHA = entry.SHA
+			node.Size = fmt.Sprintf("%d", entry.Size)
+			continue
+		}
+
+		node := newTreeNodeDraft(entry.Path, path.Base(entry.Path), nodeType, entry.SHA, entry.Size)
+		nodeByPath[entry.Path] = node
+		parent.children = append(parent.children, node)
 	}
 
-	return flattenAndSort(root)
+	return treeDraftsToDTO(root.children)
 }
 
-func flattenAndSort(nodeMap map[string]*dto.TreeNode) []dto.TreeNode {
-	nodes := make([]dto.TreeNode, 0, len(nodeMap))
+type treeNodeDraft struct {
+	ID       string
+	Name     string
+	Path     string
+	Type     string
+	SHA      string
+	Size     string
+	children []*treeNodeDraft
+}
 
-	for _, node := range nodeMap {
-		if len(node.Children) > 0 {
-			childMap := map[string]*dto.TreeNode{}
-			for childIndex := range node.Children {
-				child := &node.Children[childIndex]
-				childMap[child.Path] = child
-			}
-			node.Children = flattenAndSort(childMap)
-		}
-		nodes = append(nodes, *node)
+func newTreeNodeDraft(id, name, nodeType, sha string, size int) *treeNodeDraft {
+	return &treeNodeDraft{
+		ID:       id,
+		Name:     name,
+		Path:     id,
+		Type:     nodeType,
+		SHA:      sha,
+		Size:     fmt.Sprintf("%d", size),
+		children: []*treeNodeDraft{},
 	}
+}
 
-	sort.Slice(nodes, func(i, j int) bool {
-		if nodes[i].Type != nodes[j].Type {
-			return nodes[i].Type == "directory"
+func treeDraftsToDTO(nodes []*treeNodeDraft) []dto.TreeNode {
+	sort.Slice(nodes, func(left, right int) bool {
+		if nodes[left].Type != nodes[right].Type {
+			return nodes[left].Type == "directory"
 		}
-		return strings.ToLower(nodes[i].Name) < strings.ToLower(nodes[j].Name)
+		return strings.ToLower(nodes[left].Name) < strings.ToLower(nodes[right].Name)
 	})
 
-	return nodes
+	result := make([]dto.TreeNode, 0, len(nodes))
+	for _, node := range nodes {
+		result = append(result, dto.TreeNode{
+			ID:       node.ID,
+			Name:     node.Name,
+			Path:     node.Path,
+			Type:     node.Type,
+			SHA:      node.SHA,
+			Size:     node.Size,
+			Children: treeDraftsToDTO(node.children),
+		})
+	}
+
+	return result
 }
