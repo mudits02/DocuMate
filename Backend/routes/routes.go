@@ -30,6 +30,8 @@ func SetupRoutes(r *gin.Engine) {
 		github.Use(middleware.AuthMiddleware())
 		{
 			github.GET("/repos", controllers.GetGitHubRepos)
+			github.GET("/repos/:owner/:repo/tree", controllers.GetRepoTree)
+			github.GET("/repos/:owner/:repo/blob", controllers.GetRepoFileContent)
 		}
 	}
 }
