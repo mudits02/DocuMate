@@ -24,6 +24,14 @@ export const routes = createBrowserRouter([{
             element: <ProtectedRoute><Dashboard /></ProtectedRoute>
         },
         {
+            path: "/dashboard/repos/:owner/:repo",
+            element: (
+            <ProtectedRoute>
+                <RepoExplorerPage />
+            </ProtectedRoute>
+            ),
+        },
+        {
             path: '/auth/callback',
             element: <AuthCallback />
         }
